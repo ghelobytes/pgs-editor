@@ -27,6 +27,30 @@ Ext.define('PGP.layer.Manager', {
 			flex: 0,
 			title: 'Layers',
 			hideHeaders: true,
+			buttonAlign: 'center',
+			buttons:[
+				{
+					xtype: 'button',
+					tooltip: 'Refresh form Data',
+					text: 'Upload spatial data',
+					scale: 'medium',
+					handler: function(){
+					
+						Ext.create('Ext.window.Window', {
+							modal: true,
+							layout: 'fit',
+							width: 400,
+							height: 300,
+							items: {
+								xtype: 'pgp-layer-uploader',
+								title: ''
+							},
+							title: 'Data upload wizard'
+						}).show();
+						
+					}
+				}
+			],
 			tbar: [
 				{ 
 					xtype: 'textfield', 
@@ -115,106 +139,150 @@ Ext.define('PGP.layer.Manager', {
 				title: 'General',
 				layout: {
 					type: 'vbox',
-					align: 'stretch'
-				},
-				bodyPadding: 30,
-				defaults: {
-					labelWidth: 100
+					align: 'stretch',
+					pack: 'start'
 				},
 				items: [
 					{
-						xtype: 'textfield',
-						fieldLabel: 'Layer name',
-						readOnly: true,
-						disabled: true,
-						bind: '{layer_name}'
-					},
-					{
-						xtype: 'textfield',
-						fieldLabel: 'Title',
-						bind: '{title}'
-					},
-					{
-						xtype: 'textarea',
-						fieldLabel: 'Description',
-						height: 100,
-						bind: '{description}'
-					},
-					
-					
-					{
-						xtype: 'fieldcontainer',
-						layout: 'hbox',
+						xtype: 'panel',
+						title: 'Layer properties',
+						bodyPadding: 20,
+						padding: '20 20 10 20',
+						defaults: {
+							labelWidth: 100
+						},
+						layout: {
+							type: 'vbox',
+							align: 'stretch'
+						},
 						items: [
-						
 							{
-								xtype: 'datefield',
-								fieldLabel: 'Date updated',
-								bind: '{date_updated}'
+								xtype: 'textfield',
+								fieldLabel: 'Layer name',
+								readOnly: true,
+								disabled: true,
+								bind: '{layer_name}'
 							},
 							{
-								xtype: 'checkboxfield',
-								boxLabel: 'Enabled',
-								labelAlign: 'left',
-								padding: '0 0 0 15',
-								bind: '{listed}'
+								xtype: 'textfield',
+								fieldLabel: 'Title',
+								bind: '{title}'
 							},
 							{
-								xtype: 'checkboxfield',
-								padding: '0 0 0 15',
-								labelAlign: 'left',
-								boxLabel: 'Tiled',
-								bind: '{tiled}'
+								xtype: 'textarea',
+								fieldLabel: 'Description',
+								height: 100,
+								bind: '{description}'
+							},
+							{
+								xtype: 'fieldcontainer',
+								layout: 'hbox',
+								items: [
+								
+									{
+										xtype: 'datefield',
+										fieldLabel: 'Date updated',
+										bind: '{date_updated}'
+									},
+									{
+										xtype: 'checkboxfield',
+										boxLabel: 'Enabled',
+										labelAlign: 'left',
+										padding: '0 0 0 15',
+										bind: '{listed}'
+									},
+									{
+										xtype: 'checkboxfield',
+										padding: '0 0 0 15',
+										labelAlign: 'left',
+										boxLabel: 'Tiled',
+										bind: '{tiled}'
+									}
+								]
+							
+							},
+							{
+								xtype: 'textfield',
+								itemId: 'tags',
+								fieldLabel: 'Tags',
+								bind: '{tags}'
 							}
 						]
-					
-					},
-					
-					{
-						xtype: 'textfield',
-						itemId: 'tags',
-						fieldLabel: 'Tags',
-						bind: '{tags}'
 					},
 					{
-						xtype: 'fieldset',
-						layout: 'fit',
-						padding: '0 5 5 5',
+						xtype: 'grid',
+						itemId: 'attributes',
 						title: 'Visible attributes',
-						items: {
-							xtype: 'grid',
-							itemId: 'attributes',
-							store: Ext.create('Ext.data.Store',{
-								fields: ['attribute', 'alias']
-							}),
-							columns: [
-								{
-									header: 'Name',
-									dataIndex: 'attribute',
-									flex: 1
-								},
-								{
-									header: 'Alias',
-									dataIndex: 'alias',
-									flex: 2,
-									editor: {
-										xtype: 'textfield',
-										allowBlank: false
-									}
+						padding: '10 20 20 20',
+						flex: 1,
+						store: Ext.create('Ext.data.Store',{
+							fields: ['attribute', 'alias']
+						}),
+						//disableSelection: true,
+						columns: [
+							{
+								xtype: 'rownumberer',
+								header: 'No',
+								width: 55,
+								align: 'center'
+							},
+							{
+								header: 'Attribute',
+								itemId: 'attributeColumn',
+								dataIndex: 'attribute',
+								flex: 1
+							},
+							{
+								header: 'Alias',
+								dataIndex: 'alias',
+								flex: 2,
+								editor: {
+									xtype: 'textfield',
+									allowBlank: false
 								}
-																
-							],
-							plugins: [
-								Ext.create('Ext.grid.plugin.CellEditing', {
-									clicksToEdit: 1
-								})
-							],
-							bind: '{attributes}'
+							}
+															
+						],
+						plugins: [
+							{
+								ptype: 'cellediting',
+								plugindId: 'cellediting',
+								clicksToEdit: 2
+							}
+						],
+						viewConfig: {
+							plugins: {
+								ptype: 'gridviewdragdrop',
+								dragText: 'Drag and drop to reorder appearance of properties'
+							}
 						},
-						flex: 1
-						
+						buttonAlign: 'left',
+						fbar: [
+							{
+								text: 'Add',
+								handler: function(){
+									me.showAttributeListWindow();
+								}
+							},
+							{
+								text: 'Remove',
+								handler: function(){
+									var grid = me.down('#attributes');
+									var selection = grid.getSelectionModel().getSelection();
+									
+									if(selection.length > 0){
+									
+										selection = selection[0];
+										grid.getStore().remove(selection);
+									
+									}
+									
+									
+								}
+							}
+						],
+						bind: '{attributes}'
 					}
-					
 				]
 			},
 			{
@@ -281,7 +349,6 @@ Ext.define('PGP.layer.Manager', {
 		];
 		return items;
 	},
-	
 	save: function(){
 		var me = this;
 		var p = me.down('#middlePanel');
@@ -370,6 +437,8 @@ Ext.define('PGP.layer.Manager', {
 		p.viewModel.setStores(viewConfig.stores);
 		
 		me.layerId = data.layer_name;
+		
+		
 	},
 	handleAfterRender: function(comp) {
 		var me = this.up('pgp-layer-manager');
@@ -412,11 +481,85 @@ Ext.define('PGP.layer.Manager', {
 			}
 		});
 	},
-	
 	getLayerId: function(){
 		return this.layerId;
 	},
+
+	showAttributeListWindow: function(){
+		var me = this;
+		var grid = me.down('#attributes');
 	
+		Ext.Ajax.request({
+			url: '/layer/' + me.getLayerId() + '/attributes',
+			success: function(response){
+				
+				var obj = Ext.decode(response.responseText);
+				var list = [];
+				for(var item in obj){
+					list.push(obj[item]['column_name']);
+				}
+			
+				var win = Ext.create('Ext.window.Window', {
+					title: 'Select attribute to add',
+					modal: true,
+					width: 300,
+					height: 170,
+					bodyPadding: 10,
+					layout: 'form',
+					border: false,
+					items: [
+						{
+							xtype: 'combo',
+							itemId: 'attribute',
+							store: list,
+							fieldLabel: 'Attribute',
+							editable: false,
+							listeners: {
+								select: function(){
+									this.nextSibling().setValue(this.getValue());
+								}
+							}
+						},
+						{
+							xtype: 'textfield',
+							itemId: 'alias',
+							fieldLabel: 'Alias'
+						}
+					],
+					buttons: [
+						{
+							text: 'Ok',
+							handler: function(){
+							var attribute = win.down('#attribute').getValue();
+							var alias = win.down('#alias').getValue();
+							
+							grid.getStore().add({attribute: attribute, alias: alias});
+								win.close();
+							}
+						}
+					]
+				
+				}).show();
+				
+				
+				
+			}, 
+			failure: function(error){
+			}
+		});
+	
+		
+	
+	
+	},
 	foo: function(){}
 });
+
+
+
+
+
+
+
+
 

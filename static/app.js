@@ -7,7 +7,10 @@ Ext.Loader.setConfig({
 });
 
 
+Ext.require('Ext.window.Window');
+Ext.require('PGP.layer.Uploader');
 Ext.require('PGP.layer.Manager');
+
 
 Ext.onReady(function() {
    

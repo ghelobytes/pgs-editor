@@ -16,9 +16,13 @@ var pg = require('pg');
 
 //================ CONFIG ===============//
 
-app.use(bodyParser());
-app.use(cookieParser()) // required before session.
-app.use(session({ secret: 'g30p0rt@l'}));
+app.use(bodyParser.json());
+app.use(cookieParser()); // required before session.
+app.use(session({ 
+	secret: 'g30p0rt@l',
+	resave: true,
+	saveUninitialized: true
+}));
 
 
 
@@ -39,6 +43,15 @@ app.get('/layer/:layer_name', function(req, res){
 		res.json(result.rows?result.rows:result);
 	});
 });
+
+// get attributes of a layer
+app.get('/layer/:layer_name/attributes', function(req, res){
+	query('select column_name from information_schema.columns where table_schema = \'public\' and table_name = $1',[req.params.layer_name],function(result, err){
+		res.json(err?err:result.rows);
+	});
+});
+
+
 
 // get list of layer
 app.get('/layers/:mode?', function(req, res){
