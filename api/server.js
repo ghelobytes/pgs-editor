@@ -10,8 +10,9 @@ var cookieParser = require('cookie-parser');
 
 var pg = require('pg');
 
-
-
+var multiparty = require('connect-multiparty')
+var ogr2ogr = require('ogr2ogr')
+var fs = require('fs')
 
 
 //================ CONFIG ===============//
@@ -24,6 +25,7 @@ app.use(session({
 	saveUninitialized: true
 }));
 
+app.use(multiparty());
 
 
 //=============== ROUTES ===============//
@@ -80,8 +82,6 @@ app.put('/layer/:layer_name', function(req, res){
 	" 	     sld=$11, metadata=$12 " +
 	" where layer_name = $13 ";	
 	
-	console.log(data);
-	
 	query(sql,[data.title,data.description,data.date_updated,data.tags, data.config, data.style, data.agency, data.sector, data.tiled, data.listed, data.sld, data.metadata, layer_name],
 		function(result, err){
 		
@@ -94,11 +94,64 @@ app.put('/layer/:layer_name', function(req, res){
 });
 
 
+// upload a layer
+app.options('/layer/upload', enableCors, optionsHandler('POST'))
+app.post('/layer/upload', enableCors, function (req, res, next) {
+
+	var table_name = 'public._ghelobytes@yahoo_com_12345';
+	
+	var opt = ['-nln', table_name, '-lco', 'DROP_TABLE=IF_EXISTS', '-lco', 'WRITE_EWKT_GEOM=ON'];
+	
+	var ogr = ogr2ogr(req.files.upload.path)
+				.skipfailures()
+				.format('PostgreSQL')
+				.options(opt);
+	
+	var sf = ogr.stream();
+	
+	sf.on('error', next);
+	
+	var output = [];
+	sf.on('data',function(data){
+		output.push(data);
+	});
+	
+	sf.on('end',function(){
+		var sql = output.join('\n');
+
+		query(sql,[], function(result, err){
+		
+			if(err)
+				res.json({success: false, error: err});
+			else
+				res.json({success: true, msg: 'Successfully uploaded data!', data: output.join('\n')});
+		});
+
+	});
+	
+	res.on('end', function(){ 
+		// clean up files
+		fs.unlink(req.files.upload.path);
+	});
+	
+});
+
 //=============== FUNCTIONS ===============//
 
+// middleware for handling CORS
+function enableCors (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header('Access-Control-Allow-Methods', 'POST');
+  res.header("Access-Control-Allow-Headers", "X-Requested-With");
+  next();
+}
 
-
-
+function optionsHandler(methods) {
+  return function(req, res, next) {
+    res.header('Allow', methods);
+    res.send(methods);
+  };
+}
 
 
 
