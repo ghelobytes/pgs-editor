@@ -43,7 +43,15 @@ Ext.define('PGP.layer.Manager', {
 							height: 300,
 							items: {
 								xtype: 'pgp-layer-uploader',
-								title: ''
+								title: '',
+								listeners: {
+									uploaded: function(success, msg){
+										if(success)
+											Ext.Msg.alert('Success', msg);
+										else	
+											Ext.Msg.alert('Failure', msg);
+									}
+								}
 							},
 							title: 'Data upload wizard'
 						}).show();
@@ -363,7 +371,12 @@ Ext.define('PGP.layer.Manager', {
 				// check for errors
 				var obj = Ext.decode(res.responseText);
 				if(obj.success)
-					console.log('Update success!')
+					Ext.MessageBox.show({
+						msg: 'Changes saved to database.',
+						buttons: Ext.MessageBox.OK,
+						icon: Ext.MessageBox.INFO
+					
+					});
 				else
 					console.log(obj.error);
 			},
