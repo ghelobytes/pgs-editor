@@ -113,8 +113,11 @@ var server = app.listen(PORT, function(){
 
 
 var query = function(sql, params, callback){
-	var CONN_STRING = 'postgres://postgres:@dm1n1$tr@t0r@192.168.8.20:5432/geoportal';
+	//var CONN_STRING = 'postgres://postgres:@dm1n1$tr@t0r@192.168.8.20:5432/geoportal';
 
+	var CONN_STRING = 'postgres://postgres:@localhost:5432/geoportal';
+
+	
 	pg.connect(CONN_STRING, function(err, client, done) {
 		if(err) {
 			return console.error('error fetching client from pool', err);
