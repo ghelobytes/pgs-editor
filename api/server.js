@@ -1,4 +1,9 @@
+// REMEMBER to set GDAL_DATA
+
+
 var PORT = 8000;
+
+var GEOSERVER_REST = 'http://admin:admin@localhost:8080/geoserver/rest';
 
 var express = require('express');
 var app = express();
@@ -14,8 +19,17 @@ var multiparty = require('connect-multiparty')
 var ogr2ogr = require('ogr2ogr')
 var fs = require('fs')
 
+var rest = require('restler');
+var crypto = require('crypto');
+
+
+
+
+testOgr2ogr();
 
 //================ CONFIG ===============//
+
+
 
 app.use(bodyParser.json());
 app.use(cookieParser()); // required before session.
@@ -98,34 +112,59 @@ app.put('/layer/:layer_name', function(req, res){
 app.options('/layer/upload', enableCors, optionsHandler('POST'))
 app.post('/layer/upload', enableCors, function (req, res, next) {
 
-	var table_name = 'public._ghelobytes@yahoo_com_12345';
+	var user_name = 'ghelo';
+	var random = crypto.randomBytes(20).toString('hex').substring(0,5);;
+	var table_name = user_name + '_' + random;
+	var srs = req.body.srs;	
 	
-	var opt = ['-nln', table_name, '-lco', 'DROP_TABLE=IF_EXISTS', '-lco', 'WRITE_EWKT_GEOM=ON'];
+	var opt = ['-nln', 'public.' + table_name, '-lco', 'DROP_TABLE=IF_EXISTS'];
 	
 	var ogr = ogr2ogr(req.files.upload.path)
 				.skipfailures()
+				.project(srs)
 				.format('PostgreSQL')
+				.destination('PG:host=127.0.0.1 user=postgres dbname=geoportal')
 				.options(opt);
 	
 	var sf = ogr.stream();
 	
-	sf.on('error', next);
+	sf.on('error', function(err){
+		console.log(err)
+		next();
+	});
 	
-	var output = [];
 	sf.on('data',function(data){
-		output.push(data);
 	});
 	
 	sf.on('end',function(){
-		var sql = output.join('\n');
+		console.log(' Stream END!');
+	
+		/*
+		var url = GEOSERVER_REST + '/workspaces/geoportal/datastores/geoportal/featuretypes.json?recalculate=nativebbox,latlonbbox';
+		var payload = {
+			featureType:{
+				name: table_name,
+				title: req.body.title,
+				abstract: req.body.description,
+				srs: srs,
+				projectionPolicy: 'FORCE_DECLARED'
+			}
+		};
+		rest.postJson(url, payload).on('complete', function(data, response) {
+			if (response.statusCode == 201) {
+				
+				addLayerToPgpList(res, payload);
+				
+			} else {
+				
+				res.json({success: false, msg: 'Failed to publish layer in Geoserver.'});
 
-		query(sql,[], function(result, err){
-		
-			if(err)
-				res.json({success: false, error: err});
-			else
-				res.json({success: true, msg: 'Successfully uploaded data!', data: output.join('\n')});
+			}
 		});
+
+		*/	
+				
+		res.json({success: false, msg: 'OGR2OGR end!'});
 
 	});
 	
@@ -136,7 +175,81 @@ app.post('/layer/upload', enableCors, function (req, res, next) {
 	
 });
 
+
+app.options('/layer/upload2', enableCors, optionsHandler('POST'));
+app.post('/layer/upload2', enableCors, function (req, res, next) {
+
+	var user_name = 'ghelo';
+	var random = crypto.randomBytes(20).toString('hex').substring(0,5);;
+	var table_name = user_name + '_' + random;
+	var srs = req.body.srs;
+	
+	
+	var opt = ['-nln', 'public.' + table_name, '-lco', 'DROP_TABLE=IF_EXISTS'];
+	
+	var ogr = ogr2ogr(req.files.upload.path)
+				.skipfailures()
+				.project(srs)
+				.format('PostgreSQL')
+				.options(opt);
+	
+	var sf = ogr.stream();
+	
+	var output = [];
+	
+	sf.on('error', next);
+	
+	sf.on('data',function(data){
+		output.push(data);
+	});
+	
+	sf.on('end',function(){
+		var sql = output.join('');
+
+	});
+	
+	res.on('end', function(){ 
+		// clean up files
+		fs.unlink(req.files.upload.path);
+	});
+	
+});
+
+
 //=============== FUNCTIONS ===============//
+
+
+function testOgr2ogr(){
+
+	var myfile = ogr2ogr('C:\\Users\\ghelo\\Desktop\\sample_shape\\sample_shape.shp')
+		.format('PostgreSQL')
+		//.destination('C:\\Users\\ghelo\\Desktop\\sample_shape.shp.sql')
+		.destination('PG:host=127.0.0.1 user=postgres dbname=geoportal')
+		.options(["-lco", "DROP_TABLE=IF_EXISTS"])
+		.skipfailures()
+		.stream()
+	
+	console.log('testOgr2ogr done!')
+}
+
+// add to PGP list
+function addLayerToPgpList(res, payload){
+
+	var sql = 'insert into configuration.layer_metadata(layer_name, title, description, style) values($1,$2,$3,$1)';
+
+	query(sql,[payload.featureType.name, payload.featureType.title, payload.featureType.abstract], function(result, err){
+		
+		if(err){
+			res.json({success: false, msg: 'Failed to add layer to PGP list.'});
+		} else {
+			res.json({success: true, msg: 'Successfully uploaded and published the data!'});
+		}
+	});
+
+}
+
+
+
 
 // middleware for handling CORS
 function enableCors (req, res, next) {
@@ -153,7 +266,18 @@ function optionsHandler(methods) {
   };
 }
 
+// upload to Postgre
 
+
+
+// publish to Geoserver
+/*
+
+curl -v -u admin:geoserver -XPOST -H "Content-type: text/xml"
+  -d "<featureType><name>buildings</name></featureType>"
+  http://localhost:8080/geoserver/rest/workspaces/acme/datastores/nyc/featuretypes
+  
+*/
 
 
 
@@ -161,7 +285,7 @@ function optionsHandler(methods) {
 var server = app.listen(PORT, function(){
 
 	console.log('Listening on port %d', server.address().port);
-
+	console.log('GDAL_DATA = ' + process.env.GDAL_DATA);
 });
 
 

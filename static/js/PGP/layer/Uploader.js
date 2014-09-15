@@ -110,6 +110,14 @@ Ext.define('PGP.layer.Uploader', {
 								name: 'description',
 								fieldLabel: 'Description',
 								value: 'my description'
+							},
+							{
+								xtype: 'combo',
+								name: 'srs',
+								fieldLabel: 'Spatial ref. system',
+								store: me.getSrsList(),
+								displayField: 'name',
+								valueField: 'srid'
 							}
 						
 						
@@ -180,7 +188,6 @@ Ext.define('PGP.layer.Uploader', {
 			url: '/layer/upload',
 			success: function(form, action){
 				me.fireEvent('uploaded', true, action.result.msg);
-				console.log(action.result.data);
 			},
 			failure: function(form, action){
 				me.fireEvent('uploaded', false, action.result.msg);
@@ -188,6 +195,18 @@ Ext.define('PGP.layer.Uploader', {
 		});
 		
 	},
+	getSrsList: function(){
+	
+		return  Ext.create('Ext.data.Store', {
+			fields: ['name', 'srid'],
+			data : [
+				{name: 'WGS 84', srid: 'EPSG:4326'},
+				{name: 'Web mercator', srid: 'EPSG:3857'},
+				{name: 'PRS92', srid: 'EPSG:4683'}
+			]
+		});
+	
+	}
 	
 });
 
