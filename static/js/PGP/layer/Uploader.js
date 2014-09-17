@@ -103,7 +103,7 @@ Ext.define('PGP.layer.Uploader', {
 								xtype: 'textfield',
 								name: 'title',
 								fieldLabel: 'Title',
-								value: 'my title'
+								value: '_my title'
 							},
 							{
 								xtype: 'textarea',
