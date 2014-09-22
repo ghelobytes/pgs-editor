@@ -117,7 +117,8 @@ Ext.define('PGP.layer.Uploader', {
 								fieldLabel: 'Spatial ref. system',
 								store: me.getSrsList(),
 								displayField: 'name',
-								valueField: 'srid'
+								valueField: 'srid',
+								editable: false
 							}
 						
 						

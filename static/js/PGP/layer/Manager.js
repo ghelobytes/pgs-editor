@@ -27,38 +27,18 @@ Ext.define('PGP.layer.Manager', {
 			flex: 0,
 			title: 'Layers',
 			hideHeaders: true,
+			/*
 			buttonAlign: 'center',
 			buttons:[
 				{
 					xtype: 'button',
 					tooltip: 'Refresh form Data',
 					text: 'Upload spatial data',
-					scale: 'medium',
-					handler: function(){
-					
-						Ext.create('Ext.window.Window', {
-							modal: true,
-							layout: 'fit',
-							width: 400,
-							height: 300,
-							items: {
-								xtype: 'pgp-layer-uploader',
-								title: '',
-								listeners: {
-									uploaded: function(success, msg){
-										if(success)
-											Ext.Msg.alert('Success', msg);
-										else	
-											Ext.Msg.alert('Failure', msg);
-									}
-								}
-							},
-							title: 'Data upload wizard'
-						}).show();
-						
-					}
+					scale: 'large',
+					handler: me.uploadLayer
 				}
 			],
+			*/
 			tbar: [
 				{ 
 					xtype: 'textfield', 
@@ -72,6 +52,12 @@ Ext.define('PGP.layer.Manager', {
 							}
 						}
 					}
+				}
+			],
+			tools: [
+				{
+					type: 'plus',
+					handler: me.uploadLayer
 				}
 			],
 			store: {
@@ -97,13 +83,22 @@ Ext.define('PGP.layer.Manager', {
 		var panel = {
 			xtype: 'tabpanel',
 			itemId: 'middlePanel',
-			title: '[Layer]',
+			title: 'Settings',
 			region: 'center',
 			flex: 1.5,
 			items: me.createTabs(),
 			buttons: [
 				{
+					glyph: 'xe600@icomoon',
+					text: 'Delete layer',
+					scale: 'medium',
+					handler: me.deleteLayer,
+					scope: me
+				},
+				{xtype: 'tbfill'},
+				{
 					text: 'Save',
+					glyph: 'xe604@icomoon',
 					scale: 'large',
 					handler: me.save,
 					scope: me
@@ -117,15 +112,7 @@ Ext.define('PGP.layer.Manager', {
 		return panel;
 	},
 	createRightPanel: function(){
-		var panel = {
-			xtype: 'panel',
-			region: 'east',
-			title: 'Map',
-			split: true,
-			minWidth: 600,
-			flex: 1
-		};
-		return panel;
+		return Ext.create('PGP.map.Panel',{});
 	},
 	loadLayers: function(grid){
 		var data = [];
@@ -265,15 +252,17 @@ Ext.define('PGP.layer.Manager', {
 							}
 						},
 						buttonAlign: 'left',
-						fbar: [
+						tools: [
 							{
 								text: 'Add',
+								type: 'plus',
 								handler: function(){
 									me.showAttributeListWindow();
 								}
 							},
 							{
 								text: 'Remove',
+								type: 'minus',
 								handler: function(){
 									var grid = me.down('#attributes');
 									var selection = grid.getSelectionModel().getSelection();
@@ -301,12 +290,18 @@ Ext.define('PGP.layer.Manager', {
 					'->',
 					{
 						xtype: 'filefield',
+						itemId: 'sldFilefield',
 						targetTextArea: 'sld',
 						buttonText: 'Load SLD file',
 						buttonOnly: true,
 						width: 105,
 						listeners: {
 							afterrender: me.handleAfterRender
+						},
+						buttonConfig:{
+							style: {
+								backgroundColor: 'red'
+							}
 						}
 					}
 				],
@@ -346,9 +341,6 @@ Ext.define('PGP.layer.Manager', {
 					},
 					bind: '{metadata}'
 				}
-			},
-			{
-				title: 'Data'
 			},
 			{
 				title: 'Permission'
@@ -497,7 +489,6 @@ Ext.define('PGP.layer.Manager', {
 	getLayerId: function(){
 		return this.layerId;
 	},
-
 	showAttributeListWindow: function(){
 		var me = this;
 		var grid = me.down('#attributes');
@@ -564,6 +555,70 @@ Ext.define('PGP.layer.Manager', {
 		
 	
 	
+	},
+	uploadLayer: function(){
+		Ext.create('Ext.window.Window', {
+			modal: true,
+			layout: 'fit',
+			width: 400,
+			height: 300,
+			items: {
+				xtype: 'pgp-layer-uploader',
+				title: '',
+				listeners: {
+					uploaded: function(success, msg){
+						if(success){
+							Ext.Msg.alert('Success', msg);
+						} else {	
+							Ext.Msg.alert('Failure', msg);
+						}
+					}
+				}
+			},
+			title: 'Data upload wizard'
+		}).show();
+	},
+	
+	deleteLayer: function(){
+		var me = this;
+	
+		Ext.MessageBox.show({
+			title:'Wait!',
+			message: 'Are you sure you want to delete this layer? <br/>This is an irreversible process unless </br>you have invented a time machine.',
+			buttons: Ext.MessageBox.YESNO,
+			icon: Ext.Msg.QUESTION,
+			fn: function(btn) {
+				if(btn === 'yes') {
+					proceedDelete();
+				}else{
+					console.log('No pressed');
+				}
+			}
+		});
+	
+		function proceedDelete(){
+			Ext.Ajax.request({
+				method: 'DELETE',
+				url: '/layer/' + me.getLayerId(),
+				success: function(res){
+					// success doesn't mean the sql statement succeeded
+					// check for errors
+					var obj = Ext.decode(res.responseText);
+					if(obj.success)
+						Ext.MessageBox.show({
+							msg: 'Changes saved to database.',
+							buttons: Ext.MessageBox.OK,
+							icon: Ext.MessageBox.INFO
+						
+						});
+					else
+						console.log(obj.error);
+				},
+				failure: function(error){
+					console.log(error);
+				}
+			});
+		}
 	},
 	foo: function(){}
 });
