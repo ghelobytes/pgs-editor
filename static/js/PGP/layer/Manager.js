@@ -2,6 +2,7 @@ Ext.define('PGP.layer.Manager', {
 	extend: 'Ext.panel.Panel',
 	alias: 'widget.pgp-layer-manager',
 	layout: 'border',
+	wmsService: null,
 	layerId: null,
 	initComponent: function(){
 		
@@ -27,18 +28,6 @@ Ext.define('PGP.layer.Manager', {
 			flex: 0,
 			title: 'Layers',
 			hideHeaders: true,
-			/*
-			buttonAlign: 'center',
-			buttons:[
-				{
-					xtype: 'button',
-					tooltip: 'Refresh form Data',
-					text: 'Upload spatial data',
-					scale: 'large',
-					handler: me.uploadLayer
-				}
-			],
-			*/
 			tbar: [
 				{ 
 					xtype: 'textfield', 
@@ -170,6 +159,12 @@ Ext.define('PGP.layer.Manager', {
 								bind: '{description}'
 							},
 							{
+								xtype: 'textfield',
+								itemId: 'tags',
+								fieldLabel: 'Tags',
+								bind: '{tags}'
+							},
+							{
 								xtype: 'fieldcontainer',
 								layout: 'hbox',
 								items: [
@@ -195,12 +190,6 @@ Ext.define('PGP.layer.Manager', {
 									}
 								]
 							
-							},
-							{
-								xtype: 'textfield',
-								itemId: 'tags',
-								fieldLabel: 'Tags',
-								bind: '{tags}'
 							}
 						]
 					},
@@ -308,11 +297,33 @@ Ext.define('PGP.layer.Manager', {
 				items: {
 					xtype: 'textarea',
 					itemId: 'sld',
+					inputAttrTpl: 'wrap="off"',
 					fieldStyle: {
 						fontFamily: 'courier new',
-						fontSize: '12px'
-				   },
-				   bind: '{sld}'
+						fontSize: '12px',
+						overflow: 'auto'
+					},
+					bind: '{sld}',
+					listeners: {
+					
+						specialkey: function(field, e){
+							if (e.getKey() == e.TAB) {
+								e.stopEvent();
+								var el = field.inputEl.dom;
+								if (el.setSelectionRange) {
+									var withIns = el.value.substring(0, el.selectionStart) + '    ';
+									var pos = withIns.length;
+									el.value = withIns + el.value.substring(el.selectionEnd, el.value.length);
+									el.setSelectionRange(pos, pos);
+								}
+								else if (document.selection) {
+									document.selection.createRange().text = '    ';
+								}
+							 }
+						 }
+					
+					
+					}
 				}
 			},
 			{
@@ -324,6 +335,7 @@ Ext.define('PGP.layer.Manager', {
 					{
 						xtype: 'filefield',
 						targetTextArea: 'metadata',
+						inputAttrTpl: 'wrap="off"',
 						buttonText: 'Load Metadata file',
 						buttonOnly: true,
 						width: 140,
@@ -362,15 +374,16 @@ Ext.define('PGP.layer.Manager', {
 				// success doesn't mean the sql statement succeeded
 				// check for errors
 				var obj = Ext.decode(res.responseText);
-				if(obj.success)
+				if(obj.success){
+					me.updateMapPreview();
 					Ext.MessageBox.show({
 						msg: 'Changes saved to database.',
 						buttons: Ext.MessageBox.OK,
 						icon: Ext.MessageBox.INFO
-					
 					});
-				else
+				} else {
 					console.log(obj.error);
+				}
 			},
 			failure: function(error){
 				console.log(error);
@@ -443,6 +456,8 @@ Ext.define('PGP.layer.Manager', {
 		
 		me.layerId = data.layer_name;
 		
+		// update map preview
+		me.updateMapPreview(true);
 		
 	},
 	handleAfterRender: function(comp) {
@@ -578,7 +593,51 @@ Ext.define('PGP.layer.Manager', {
 			title: 'Data upload wizard'
 		}).show();
 	},
-	
+	updateMapPreview: function(zoomToExtent){
+		var me = this;
+		var layer_name = me.getLayerId();
+		
+		var map = me.down('pgp-map-panel').getMap();
+		
+		var layer = new OpenLayers.Layer.WMS( 
+			layer_name,
+			me.wmsService, 
+			{
+				layers: 'geoportal:' + layer_name,
+				transparent: true,
+				rand: Math.random()
+			},
+			{
+				isBaseLayer: false,
+				opacity: 0.75
+			}
+		);
+		
+		// remove all layers except NAMRIA basemap
+		for(var i=0; i<map.layers.length;i++){
+			var l = map.layers[i];
+			if(!l.isBaseLayer)
+				map.removeLayer(l);	
+		}
+		
+		// zoom to layer's extent
+		if(zoomToExtent){
+			Ext.Ajax.request({
+				url: 'layer/' + layer_name + '/extent',
+				success: function(res){
+					var obj = Ext.decode(res.responseText);
+					var extent = new OpenLayers.Bounds(obj.xmin, obj.ymin, obj.xmax, obj.ymax);
+					map.zoomToExtent(extent);
+				},
+				failure: function(err){
+				}
+			});
+		}
+		
+		// add the layer
+		map.addLayer(layer);
+		
+	},
 	deleteLayer: function(){
 		var me = this;
 	

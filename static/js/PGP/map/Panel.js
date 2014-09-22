@@ -14,8 +14,6 @@ Ext.define('PGP.map.Panel', {
 			var wh = this.ownerCt.getSize();
 			Ext.applyIf(this, wh);
 			
-			console.log('initialized');	
-
 			var pgp_basemap_cache = new OpenLayers.Layer.NAMRIA(
 				'NAMRIA Basemap',
 				'http://202.90.149.252/ArcGIS/rest/services/Basemap/PGS_Basemap/MapServer',

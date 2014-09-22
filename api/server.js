@@ -1,20 +1,38 @@
 // REMEMBER to set GDAL_DATA
 
-//var CONN_STRING = 'postgres://postgres:@dm1n1$tr@t0r@192.168.8.20:5432/geoportal';
-var CONN_STRING = 'postgres://postgres:@localhost:5432/geoportal';
+var ENV = 'DESKTOP';
 
-var GEOSERVER_REST = 'http://admin:admin@localhost:8080/geoserver/rest';
-//var GEOSERVER_REST = 'http://admin:@dm1n1$tr@t0r@202.90.149.232/geoserver/rest';
+var SETTINGS = {
+	DESKTOP:{
+		CONN_STRING: 			'postgres://postgres:@dm1n1$tr@t0r@192.168.8.20:5432/geoportal',
+		OGR2OGR_DESTINATION:	'PG:host=192.168.8.20 user=postgres password=@dm1n1$tr@t0r dbname=geoportal',
+		SCHEMA: 				'public',
+		GEOMETRY_NAME:			'wkb_geometry',
+		GEOSERVER_REST:			'http://admin:@dm1n1$tr@t0r@202.90.149.232/geoserver/rest',
+		GEOSERVER_WORKSPACE:	'geoportal',
+		GEOSERVER_STORE:		'postgis',
+		PORT:					8000
+	},
+	LAPTOP:{
+		CONN_STRING:			'postgres://postgres:@localhost:5432/geoportal',
+		OGR2OGR_DESTINATION:	'PG:host=localhost user=postgres dbname=geoportal',
+		SCHEMA:					'public',
+		GEOMETRY_NAME:			'wkb_geometry',
+		GEOSERVER_REST:			'http://admin:admin@localhost:8080/geoserver/rest',
+		GEOSERVER_WORKSPACE:	'geoportal',
+		GEOSERVER_STORE:		'geoportal',
+		PORT:					8000
+	}
+};
 
-var OGR2OGR_DESTINATION = 'PG:host=localhost user=postgres dbname=geoportal';
-//var OGR2OGR_DESTINATION = 'PG:host=192.168.8.20 user=postgres password=@dm1n1$tr@t0r dbname=geoportal';
+var CONN_STRING = SETTINGS[ENV].CONN_STRING;
+var GEOSERVER_REST = SETTINGS[ENV].GEOSERVER_REST;
+var OGR2OGR_DESTINATION = SETTINGS[ENV].OGR2OGR_DESTINATION;
+var GEOMETRY_NAME = SETTINGS[ENV].GEOMETRY_NAME;
+var SCHEMA = SETTINGS[ENV].SCHEMA;
+var GEOSERVER_WORKSPACE = SETTINGS[ENV].GEOSERVER_WORKSPACE;
+var GEOSERVER_STORE = SETTINGS[ENV].GEOSERVER_STORE;
 
-var GEOMETRY_NAME = 'wkb_geometry';
-
-var SCHEMA = 'public';
-
-var GEOSERVER_WORKSPACE = 'geoportal';
-var GEOSERVER_STORE = 'geoportal';
 
 var DEFAULT_SLD = multilineWrapper(function(){/*
 <?xml version="1.0" encoding="ISO-8859-1"?>
@@ -59,18 +77,14 @@ var DEFAULT_SLD = multilineWrapper(function(){/*
 </StyledLayerDescriptor>
 	*/});
 
-
-var PORT = 8000;
-
+var PORT = SETTINGS[ENV].PORT;
 
 var express = require('express');
 var app = express();
 
-
 var bodyParser = require('body-parser');
 var session = require('express-session');
 var cookieParser = require('cookie-parser');
-
 
 var pg = require('pg');
 
@@ -81,18 +95,11 @@ var fs = require('fs')
 var rest = require('restler');
 var crypto = require('crypto');
 
-
 //=============== START ===============//
 
 startServer();
 
 //================ METHOD ===============//
-
-function testRemoveLayer(){
-	removeLayer('_ghelo_0371b','public','geoportal','geoportal', function(success, data){
-		console.log(success, data);
-	});
-}
 
 function setupConfig(){
 
@@ -119,6 +126,16 @@ function setupRoutes() {
 	app.use('/', express.static(__dirname + '/../static'));
 
 
+	// get a layer's extent
+	app.get('/layer/:layer_name/extent', function(req, res){
+		var sql = 'select st_xmin(st_extent(st_transform(wkb_geometry, 3857))) as xmin,st_ymin(st_extent(st_transform(wkb_geometry, 3857))) as ymin,st_xmax(st_extent(st_transform(wkb_geometry, 3857))) as xmax,st_ymax(st_extent(st_transform(wkb_geometry, 3857))) as ymax from ' + req.params.layer_name;
+		query(sql,[], function(result, err){
+			res.json(err?err:result.rows[0]);
+		});
+	
+	});
+	
+	
 	// get a layer
 	app.get('/layer/:layer_name', function(req, res){
 		query('select * from configuration.layer_metadata where layer_name = $1',[req.params.layer_name],function(result, err){
@@ -170,7 +187,8 @@ function setupRoutes() {
 					featureType:{
 						title: data.title,
 						abstract: data.description,
-						enabled: data.listed
+						advertised: data.listed,
+						enabled: true
 					}
 				};
 		
@@ -209,17 +227,18 @@ function setupRoutes() {
 				name: table_name,
 				title: req.body.title,
 				abstract: req.body.description,
+				advertised: false,
+				enabled: true,
 				srs: srs,
 				projectionPolicy: 'FORCE_DECLARED'
 			}
 		};
 		
 		
-		var opt = ['-s_srs', srs, '-nln', table_schema + '.' + table_name, '-lco', 'DROP_TABLE=IF_EXISTS', '-lco', 'GEOMETRY_NAME=' + GEOMETRY_NAME];
+		var opt = ['-a_srs', srs, '-s_srs', srs, '-nln', table_schema + '.' + table_name, '-lco', 'DROP_TABLE=IF_EXISTS', '-lco', 'GEOMETRY_NAME=' + GEOMETRY_NAME];
 		
 		var ogr = ogr2ogr(req.files.upload.path)
 			.skipfailures()
-			//.project(srs, srs)
 			.format('PostgreSQL')
 			.destination(OGR2OGR_DESTINATION)
 			.options(opt);
@@ -255,7 +274,6 @@ function setupRoutes() {
 								});
 							
 							});
-							
 						
 							// add to pgp layer list
 							addLayerToPgpList(res, geoserverPayload, function(success){
@@ -569,7 +587,7 @@ function checkTableWasAdded(table_name, table_schema, callback){
 // add to PGP list
 function addLayerToPgpList(res, payload, callback){
 
-	var sql = 'insert into configuration.layer_metadata(layer_name, title, description, style, sld) values($1,$2,$3,$1,$4)';
+	var sql = 'insert into configuration.layer_metadata(layer_name, title, description, style, sld, tiled) values($1,$2,$3,$1,$4, true)';
 
 	query(sql,[payload.featureType.name, payload.featureType.title, payload.featureType.abstract, DEFAULT_SLD], function(result, err){
 		if(err){
