@@ -1,6 +1,9 @@
 // REMEMBER to set GDAL_DATA
 
-var ENV = 'DESKTOP';
+
+//=============== SETTINGS ===============//
+
+var ENV = 'LAPTOP';
 
 var SETTINGS = {
 	DESKTOP:{
@@ -79,6 +82,8 @@ var DEFAULT_SLD = multilineWrapper(function(){/*
 
 var PORT = SETTINGS[ENV].PORT;
 
+//=============== VARIABLES ===============//
+
 var express = require('express');
 var app = express();
 
@@ -95,7 +100,22 @@ var fs = require('fs')
 var rest = require('restler');
 var crypto = require('crypto');
 
+
+var flash = require('connect-flash');
+var passport = require('passport');
+var util = require('util');
+var logger = require('morgan');
+var cookieParser = require('cookie-parser');
+var methodOverride = require('method-override');
+var session = require('express-session');
+var passwordHash = require('password-hash');
+var LocalStrategy = require('passport-local').Strategy;
+
 //=============== START ===============//
+
+
+
+
 
 startServer();
 
@@ -110,9 +130,164 @@ function setupConfig(){
 		resave: true,
 		saveUninitialized: true
 	}));
-
 	app.use(multiparty());
 
+	app.use(new logger('dev'));
+	//app.use(new cookieParser());
+	//app.use(bodyParser.json());
+	app.use(bodyParser.urlencoded({ extended: true }));
+	app.use(new methodOverride());
+	//app.use(new session({ secret: 'keyboard cat', resave: true, saveUninitialized: true }));
+	app.use(flash());
+	app.use(passport.initialize());
+	app.use(passport.session());
+
+	
+}
+
+function setupAuthentication(){
+
+
+	app.engine('html', require('ejs').renderFile);
+	app.set('views',__dirname + '/../static');
+
+	/*
+	var users = [
+		{ id: 1, username: 'ghelo', password: 'sha1$bfdbdd36$1$d00212caf89180b8fb858ea275d86a34d4bb846f', email: 'ghelobytes@yahoo.com' }
+	  , { id: 2, username: 'tere', password: 'sha1$bcbb6e50$1$c63522c575c7ce94edb9e5354e72478c03cfb982', email: 'mtmalcampo@yahoo.com' }
+	];
+	*/
+
+	/*
+	function findById(id, fn) {
+	  var idx = id - 1;
+	  if (users[idx]) {
+		fn(null, users[idx]);
+	  } else {
+		fn(new Error('User ' + id + ' does not exist'));
+	  }
+	}
+	*/
+	function findById(id, fn) {
+		var sql = 'select * from configuration.users where id = $1';
+		query(sql, [id], function(result, err){
+			if(err || result.rowCount < 1){
+				return fn(new Error('User ' + id + ' does not exist'));
+			}else{
+				var user = result.rows[0];
+				return fn(null, user);
+			}
+		});
+	}
+
+	/*
+	function findByUsername(username, fn) {
+	  for (var i = 0, len = users.length; i < len; i++) {
+		var user = users[i];
+		if (user.username === username) {
+		  return fn(null, user);
+		}
+	  }
+	  return fn(null, null);
+	}
+	*/
+	
+	function findByUsername(username, fn) {
+		var sql = 'select * from configuration.users where username = $1';
+		query(sql, [username], function(result, err){
+			if(err || result.rowCount < 1){
+				return fn(null, null);
+			}else{
+				var user = result.rows[0];
+				return fn(null, user);
+			}
+		});
+	}
+	
+
+	function ensureAuthenticated(req, res, next) {
+	  if (req.isAuthenticated()) { return next(); }
+	  //res.redirect('/login');
+		res.sendfile('/login.html', {root: __dirname + '/../static'});
+	}
+
+
+	passport.use(new LocalStrategy(
+	  function(username, password, done) {
+		// asynchronous verification, for effect...
+		process.nextTick(function () {
+		  
+		  // Find the user by username.  If there is no user with the given
+		  // username, or the password is not correct, set the user to `false` to
+		  // indicate failure and set a flash message.  Otherwise, return the
+		  // authenticated `user`.
+		  findByUsername(username, function(err, user) {
+			if (err) { return done(err); }
+			if (!user) { return done(null, false, { message: 'Unknown user ' + username }); }
+			//if (user.password != password) { return done(null, false, { message: 'Invalid password' }); }
+			var validPassword = passwordHash.verify(password, user.password);
+			if (!validPassword) { return done(null, false, { message: 'Invalid password' }); }
+			console.log('validPassword =', validPassword, password, user.password);
+			return done(null, user);
+		  })
+		});
+	  }
+	));
+
+	passport.serializeUser(function(user, done) {
+	  done(null, user.id);
+	});
+
+	passport.deserializeUser(function(id, done) {
+	  findById(id, function (err, user) {
+		done(err, user);
+	  });
+	});
+	
+	
+	
+	app.post('/login', function(req, res, next) {
+		passport.authenticate('local', function(err, user, info) {
+			if (err) { return next(err) }
+			if (!user) {
+				return res.json({success: false, msg: info.message});
+			}
+			req.logIn(user, function(err) {
+				console.log('xxxxx', user);
+				if (err) { return next(err); }
+				return res.json({success: true, msg: 'Valid user!'});
+			});
+		})(req, res, next);
+	});
+	
+	app.get('/', ensureAuthenticated, function(req, res){
+		//res.render('account', { user: req.user });
+		//res.sendfile('/index.html', {root: __dirname + '/../static'});
+		res.render('index.html', { user: req.user });
+	});	
+	
+	app.get('/index.html', ensureAuthenticated, function(req, res){
+		//res.render('account', { user: req.user });
+		res.sendfile('/index.html', {root: __dirname + '/../static'});
+	});
+	
+	
+	app.get('/util/hash/:password',function(req, res){
+		
+		res.end(passwordHash.generate(req.params.password));
+	
+	});
+	
+	app.get('/user', ensureAuthenticated, function(req, res){
+		res.json(req.user);
+	});
+	
+
+	app.get('/logout', function(req, res){
+	  req.logout();
+	  res.redirect('/');
+	});
+	
 }
 
 function setupRoutes() {
@@ -342,10 +517,10 @@ function setupRoutes() {
 function startServer(){
 
 	setupConfig();
+	setupAuthentication();
 	setupRoutes();
 	
 	var server = app.listen(PORT, function(){
-
 		console.log('Listening on port %d', server.address().port);
 		console.log('GDAL_DATA = ' + process.env.GDAL_DATA);
 	});

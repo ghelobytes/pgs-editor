@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>PGS v3</title>
+
+		<!-- CSS -->
+		<link rel="stylesheet" type="text/css" href="lib/extjs/packages/ext-theme-neptune-touch/build/resources/ext-theme-neptune-touch-all-debug.css">
+		<!-- <link rel="stylesheet" type="text/css" href="lib/extjs/packages/ext-theme-crisp/build/resources/ext-theme-crisp-all-debug.cssx"> -->
+		<link rel="stylesheet" type="text/css" href="css/pgsv3.css">
+		
+		<!-- JS -->
+		<script type="text/javascript" src="lib/extjs/ext-all.js"></script>
+
+		
+		<link rel="stylesheet" type="text/css" href="lib/ol/theme/default/pgp.css">
+		
+		<!-- Main -->
+		<script>
+		
+
+		Ext.onReady(function() {
+		   
+			Ext.create('Ext.container.Viewport', {
+				layout: {
+					type: 'vbox',
+					align: 'center',
+					pack: 'center'
+				},
+				items: {
+					xtype: 'form',
+					url: '/login',
+					title: 'Map Builder login',
+					frame:true,
+					width: 340,
+					bodyPadding: 10,
+					
+					defaultType: 'textfield',
+					defaults: {
+						anchor: '100%'
+					},
+					
+					items: [
+						{
+							allowBlank: false,
+							fieldLabel: 'User name',
+							name: 'username',
+							emptyText: 'user id'
+						},
+						{
+							allowBlank: false,
+							fieldLabel: 'Password',
+							name: 'password',
+							emptyText: 'password',
+							inputType: 'password'
+						}
+					],
+					
+					buttons: [
+						{ 
+							text:'Login',
+							handler: function() {
+								var form = this.up('form').getForm();
+								if (form.isValid()) {
+									form.submit({
+										success: function(form, action) {
+											//Ext.Msg.alert('Success', action.result.msg);
+											location.href = '/';
+										},
+										failure: function(form, action) {
+											console.log(action);
+											Ext.Msg.alert('Failed', action.result.msg);
+										}
+									});
+								}
+							}
+							
+						}
+					]
+				}
+				
+				
+			});
+			
+		});
+		
+		
+
+		
+		
+		
+		
+		</script>
+	</head>
+	<body></body>
+</html>

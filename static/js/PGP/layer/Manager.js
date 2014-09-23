@@ -132,6 +132,7 @@ Ext.define('PGP.layer.Manager', {
 						title: 'Layer properties',
 						bodyPadding: 20,
 						padding: '20 20 10 20',
+						flex: 1.5,
 						defaults: {
 							labelWidth: 100
 						},

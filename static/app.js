@@ -20,7 +20,8 @@ Ext.onReady(function() {
 		items: [
 			{
 				xtype: 'pgp-layer-manager',
-				wmsService: 'http://202.90.149.232:80/geoserver/geoportal/wms'
+				//wmsService: 'http://202.90.149.232:80/geoserver/geoportal/wms',
+				wmsService: 'http://localhost:8080/geoserver/wms'
 			}
 		]
 		
