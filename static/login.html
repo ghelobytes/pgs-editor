@@ -29,7 +29,7 @@
 				},
 				items: {
 					xtype: 'form',
-					url: '/login',
+					url: './login',
 					title: 'Map Builder login',
 					frame:true,
 					width: 340,
@@ -65,7 +65,7 @@
 									form.submit({
 										success: function(form, action) {
 											//Ext.Msg.alert('Success', action.result.msg);
-											location.href = '/';
+											location.href = './';
 										},
 										failure: function(form, action) {
 											console.log(action);

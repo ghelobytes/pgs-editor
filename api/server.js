@@ -3,9 +3,19 @@
 
 //=============== SETTINGS ===============//
 
-var ENV = 'LAPTOP';
+var ENV = 'SERVER';
 
 var SETTINGS = {
+	SERVER:{
+		CONN_STRING: 			'postgres://postgres:@dm1n1$tr@t0r@192.168.8.20:5432/geoportal',
+		OGR2OGR_DESTINATION:	'PG:host=192.168.8.20 user=postgres password=@dm1n1$tr@t0r dbname=geoportal',
+		SCHEMA: 				'public',
+		GEOMETRY_NAME:			'wkb_geometry',
+		GEOSERVER_REST:			'http://admin:@dm1n1$tr@t0r@202.90.149.232/geoserver/rest',
+		GEOSERVER_WORKSPACE:	'geoportal',
+		GEOSERVER_STORE:		'postgis',
+		PORT:					8000
+	},
 	DESKTOP:{
 		CONN_STRING: 			'postgres://postgres:@dm1n1$tr@t0r@192.168.8.20:5432/geoportal',
 		OGR2OGR_DESTINATION:	'PG:host=192.168.8.20 user=postgres password=@dm1n1$tr@t0r dbname=geoportal',

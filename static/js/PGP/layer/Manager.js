@@ -106,7 +106,7 @@ Ext.define('PGP.layer.Manager', {
 	loadLayers: function(grid){
 		var data = [];
 		Ext.Ajax.request({
-			url: '/layers',
+			url: './layers',
 			success: function(result){
 				var obj = Ext.decode(result.responseText);
 				grid.getStore().loadData(obj);
@@ -369,7 +369,7 @@ Ext.define('PGP.layer.Manager', {
 		
 		Ext.Ajax.request({
 			method: 'PUT',
-			url: '/layer/' + me.getLayerId(),
+			url: './layer/' + me.getLayerId(),
 			jsonData: data,
 			success: function(res){
 				// success doesn't mean the sql statement succeeded
@@ -486,7 +486,7 @@ Ext.define('PGP.layer.Manager', {
 	loadLayerDetails: function(layerName){
 		var me = this;
 		Ext.Ajax.request({
-			url: '/layer/' + layerName,
+			url: './layer/' + layerName,
 			success: function(result){
 				var layer;
 				var obj = Ext.decode(result.responseText);
@@ -510,7 +510,7 @@ Ext.define('PGP.layer.Manager', {
 		var grid = me.down('#attributes');
 	
 		Ext.Ajax.request({
-			url: '/layer/' + me.getLayerId() + '/attributes',
+			url: './layer/' + me.getLayerId() + './attributes',
 			success: function(response){
 				
 				var obj = Ext.decode(response.responseText);
@@ -624,7 +624,7 @@ Ext.define('PGP.layer.Manager', {
 		// zoom to layer's extent
 		if(zoomToExtent){
 			Ext.Ajax.request({
-				url: 'layer/' + layer_name + '/extent',
+				url: './layer/' + layer_name + '/extent',
 				success: function(res){
 					var obj = Ext.decode(res.responseText);
 					var extent = new OpenLayers.Bounds(obj.xmin, obj.ymin, obj.xmax, obj.ymax);
@@ -659,7 +659,7 @@ Ext.define('PGP.layer.Manager', {
 		function proceedDelete(){
 			Ext.Ajax.request({
 				method: 'DELETE',
-				url: '/layer/' + me.getLayerId(),
+				url: './layer/' + me.getLayerId(),
 				success: function(res){
 					// success doesn't mean the sql statement succeeded
 					// check for errors
